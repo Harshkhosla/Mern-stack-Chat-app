@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Img1 from '../../assets/img1.jpg'
-import tutorialsdev from '../../assets/tutorialsdev.png'
+import tutorialsdev from '../../assets/img6.jpg'
 import Input from '../../components/Input'
 import { io } from 'socket.io-client'
 
@@ -11,8 +11,9 @@ const Dashboard = () => {
 	const [message, setMessage] = useState('')
 	const [users, setUsers] = useState([])
 	const [socket, setSocket] = useState(null)
+	// const [imageFile, setImageFile] = useState(null);
 	const messageRef = useRef(null)
-
+	// const fileInputRef = useRef(null);
 	useEffect(() => {
 		setSocket(io('http://localhost:8080'))
 	}, [])
@@ -63,6 +64,14 @@ const Dashboard = () => {
 		fetchUsers()
 	}, [])
 
+	// const handleFileChange = (e) => {
+    //     // Handle file change logic here
+    //     const file = e.target.files[0];
+	// 	setImageFile(file);
+    //     // You can perform additional logic like uploading the file
+    //     console.log('Selected File:', file);
+    // };
+
 	const fetchMessages = async (conversationId, receiver) => {
 		const res = await fetch(`http://localhost:8000/api/message/${conversationId}?senderId=${user?.id}&&receiverId=${receiver?.receiverId}`, {
 			method: 'GET',
@@ -74,27 +83,114 @@ const Dashboard = () => {
 		setMessages({ messages: resData, receiver, conversationId })
 	}
 
+	const setActiveStatus = async (active) => {
+        try {
+            const response = await fetch('http://localhost:8000/api/set-active-status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: localStorage.getItem('user:token'), // Assuming you store the user token in localStorage
+                },
+                body: JSON.stringify({ active }),
+            });
+
+            if (response.ok) {
+                console.log(`Active status set to ${active}`);
+                // You can update the user state or perform any other actions upon successful status update
+            } else {
+                console.error('Failed to set active status');
+            }
+        } catch (error) {
+            console.error('Error setting active status:', error);
+        }
+    };
+
+	const [userData, setUserData] = useState(null);
+    const userId = '6571ddd165dbd769de9be0d9'; // Replace with the actual user ID
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const response = await fetch(`http://localhost:8000/api/user/${userId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    setUserData(data.user);
+                } else {
+                    console.error('Error fetching user details:', data.message);
+                }
+            } catch (error) {
+                console.error('Error fetching user details:', error);
+            }
+        };
+
+        fetchUserData();
+    }, [userId]);
+	
+	const handlePhoneIconClick = async () => {
+        // Toggle the active status
+        const isActive = !user.active;
+
+        try {
+            // Call the API to update the active status
+            const response = await fetch(`http://localhost:8000/api/updateActiveStatus/${user?.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ active: isActive }),
+            });
+
+            if (response.ok) {
+                // Update the local user state if API call is successful
+                setUser(prevUser => ({ ...prevUser, active: isActive }));
+                socket?.emit('updateActiveStatus', { userId: user?.id, isActive });
+            } else {
+                console.error('Failed to update active status via API');
+            }
+        } catch (error) {
+            console.error('Error updating active status via API:', error);
+        }
+    };
+
+	useEffect(() => {
+        // Set active status to true when component mounts
+        setActiveStatus(true);
+
+        // Clean up function to set active status to false when component unmounts
+        return () => setActiveStatus(false);
+    }, []);
 	const sendMessage = async (e) => {
-		setMessage('')
+		setMessage('');
+		console.log('Sending message via WebSocket');
 		socket?.emit('sendMessage', {
-			senderId: user?.id,
-			receiverId: messages?.receiver?.receiverId,
-			message,
-			conversationId: messages?.conversationId
+		  senderId: user?.id,
+		  receiverId: messages?.receiver?.receiverId,
+		  message,
+		  conversationId: messages?.conversationId
 		});
+	  
+		console.log('Sending message via POST request');
 		const res = await fetch(`http://localhost:8000/api/message`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				conversationId: messages?.conversationId,
-				senderId: user?.id,
-				message,
-				receiverId: messages?.receiver?.receiverId
-			})
+		  method: 'POST',
+		  headers: {
+			'Content-Type': 'application/json',
+		  },
+		  body: JSON.stringify({
+			conversationId: messages?.conversationId,
+			senderId: user?.id,
+			message,
+			receiverId: messages?.receiver?.receiverId
+		  })
 		});
-	}
+	  
+		if (res.ok) {
+		  console.log('Message sent successfully via POST');
+		} else {
+		  console.error('Failed to send message via POST');
+		}
+	  };
+	  
 
 	return (
 		<div className='w-screen flex'>
@@ -103,12 +199,14 @@ const Dashboard = () => {
 					<div><img src={tutorialsdev} width={75} height={75} className='border border-primary p-[2px] rounded-full' /></div>
 					<div className='ml-8'>
 						<h3 className='text-2xl'>{user?.fullName}</h3>
-						<p className='text-lg font-light'>My Account</p>
+						<p className='text-lg font-light' onClick={() => handlePhoneIconClick()}>
+                {user?.active ? 'Active' : 'Inactive'}
+            </p>
 					</div>
 				</div>
 				<hr />
 				<div className='mx-14 mt-10'>
-					<div className='text-primary text-lg'>Messages</div>
+					<div className='text-primary text-lg' >Messages</div>
 					<div>
 						{
 							conversations.length > 0 ?
@@ -138,14 +236,14 @@ const Dashboard = () => {
 							<h3 className='text-lg'>{messages?.receiver?.fullName}</h3>
 							<p className='text-sm font-light text-gray-600'>{messages?.receiver?.email}</p>
 						</div>
-						<div className='cursor-pointer'>
-							<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-phone-outgoing" width="24" height="24" viewBox="0 0 24 24" stroke-width="1.5" stroke="black" fill="none" stroke-linecap="round" stroke-linejoin="round">
-								<path stroke="none" d="M0 0h24v24H0z" fill="none" />
-								<path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2" />
-								<line x1="15" y1="9" x2="20" y2="4" />
-								<polyline points="16 4 20 4 20 8" />
-							</svg>
-						</div>
+						<div className='cursor-pointer' onClick={() => handlePhoneIconClick()}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="icon icon-tabler icon-tabler-phone-outgoing" width="24" height="24" viewBox="0 0 24 24" strokeWidth="1.5" stroke="black" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2" />
+                    <line x1="15" y1="9" x2="20" y2="4" />
+                    <polyline points="16 4 20 4 20 8" />
+                </svg>
+            </div>
 					</div>
 				}
 				<div className='h-[75%] w-full overflow-scroll shadow-sm'>

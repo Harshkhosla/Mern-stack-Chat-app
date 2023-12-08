@@ -5,11 +5,20 @@ const messageSchema = mongoose.Schema({
         type: String,
     },
     senderId: {
-        type: String
+        type: String,
     },
     message: {
-        type: String
-    }
+        type: String,
+    },
+    file: {
+        filename: String,
+        fileType: String,
+        filePath: String,
+    },
+    active: {
+        type: Boolean,
+        default: true, // Set the default value to true for new messages
+    },
 });
 
 const Messages = mongoose.model('Message', messageSchema);

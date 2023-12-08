@@ -1,6 +1,9 @@
 const express = require('express');
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+// const express = require('express');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 const cors = require('cors');
 const io = require('socket.io')(8080, {
     cors: {
@@ -20,6 +23,8 @@ const Messages = require('./models/Messages');
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use('/uploads', express.static('uploads'));
+
 app.use(cors());
 
 const port = process.env.PORT || 8000;
@@ -72,6 +77,79 @@ io.on('connection', socket => {
 app.get('/', (req, res) => {
     res.send('Welcome');
 })
+
+const authenticateUser = async (req, res, next) => {
+    const token = req.headers.authorization;
+
+    // Check if the token is provided
+    if (!token) {
+        return res.status(401).send('Unauthorized: Token not provided');
+    }
+
+    try {
+        // Verify the token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY || 'THIS_IS_A_JWT_SECRET_KEY');
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).send('Unauthorized: Invalid token');
+    }
+};
+app.put('/api/updateActiveStatus/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const { active } = req.body;
+
+        // Update the active status in the database
+        const updatedUser = await Users.findByIdAndUpdate(userId, { active }, { new: true });
+
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        res.status(200).json({ success: true, active: updatedUser.active });
+    } catch (error) {
+        console.error('Error updating active status:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+app.get('/api/user/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+
+        // Fetch user details from the database
+        const user = await Users.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Return the user details in the response
+        res.status(200).json({ success: true, user });
+    } catch (error) {
+        console.error('Error fetching user details:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+app.post('/api/set-active-status', authenticateUser, async (req, res) => {
+    try {
+        const { active } = req.body;
+        const userId = req.user.userId;
+
+        // Find the user by ID and update the active status
+        const user = await Users.findByIdAndUpdate(userId, { active }, { new: true });
+
+        if (!user) {
+            return res.status(404).send('User not found');
+        }
+
+        res.status(200).json({ active: user.active });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal Server Error');
+    }
+});
 
 app.post('/api/register', async (req, res, next) => {
     try {
@@ -209,7 +287,32 @@ app.get('/api/message/:conversationId', async (req, res) => {
         console.log('Error', error)
     }
 })
+app.post('/api/message', upload.single('file'), async (req, res) => {
+    try {
+        const { conversationId, senderId, message, receiverId = '' } = req.body;
 
+        // Check if a file is included in the request
+        if (req.file) {
+            const file = {
+                filename: req.file.originalname,
+                fileType: req.file.mimetype,
+                filePath: req.file.path,
+            };
+            // Save the file information in the database along with the message
+            const newMessage = new Messages({ conversationId, senderId, message, file });
+            await newMessage.save();
+        } else {
+            // Handle messages without files
+            const newMessage = new Messages({ conversationId, senderId, message });
+            await newMessage.save();
+        }
+
+        res.status(200).send('Message sent successfully');
+    } catch (error) {
+        console.log(error, 'Error');
+        res.status(500).send('Internal Server Error');
+    }
+});
 app.get('/api/users/:userId', async (req, res) => {
     try {
         const userId = req.params.userId;
