@@ -21,3 +21,24 @@ Make sure you have Node.js and npm installed on your machine.
 
 
     npm start
+
+
+   ## Getting Started
+
+To get the server up and running, follow these steps:
+
+### Prerequisites
+
+Make sure you have Node.js and npm installed on your machine.
+
+### Installation
+
+
+cd your-repository/server
+
+
+npm install
+
+
+nodemon app.js
+
