@@ -12,12 +12,20 @@ const Dashboard = () => {
 	const [users, setUsers] = useState([])
 	const [socket, setSocket] = useState(null)
 	// const [imageFile, setImageFile] = useState(null);
+	const [imageFile, setImageFile] = useState(null);
+
+	const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        setImageFile(file);
+        // setFileInputVisible(false);
+        console.log('Selected File:', file);
+    };
 	const messageRef = useRef(null)
-	// const fileInputRef = useRef(null);
+	const fileInputRef = useRef(null);
 	useEffect(() => {
 		setSocket(io('http://localhost:8080'))
 	}, [])
-
+	
 	useEffect(() => {
 		socket?.emit('addUser', user?.id);
 		socket?.on('getUsers', users => {
@@ -30,7 +38,9 @@ const Dashboard = () => {
 			}))
 		})
 	}, [socket])
-
+	const handleFileClick = () => {
+        fileInputRef.current.click();
+    };
 	useEffect(() => {
 		messageRef?.current?.scrollIntoView({ behavior: 'smooth' })
 	}, [messages?.messages])
@@ -272,13 +282,25 @@ const Dashboard = () => {
 								<path d="M21 3l-6.5 18a0.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a0.55 .55 0 0 1 0 -1l18 -6.5" />
 							</svg>
 						</div>
+					
 						<div className={`ml-4 p-2 cursor-pointer bg-light rounded-full ${!message && 'pointer-events-none'}`}>
-							<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-circle-plus" width="30" height="30" viewBox="0 0 24 24" stroke-width="1.5" stroke="#2c3e50" fill="none" stroke-linecap="round" stroke-linejoin="round">
-								<path stroke="none" d="M0 0h24v24H0z" fill="none" />
-								<circle cx="12" cy="12" r="9" />
-								<line x1="9" y1="12" x2="15" y2="12" />
-								<line x1="12" y1="9" x2="12" y2="15" />
-							</svg>
+							
+						<input
+                    type='file'
+                    accept='image/*'
+                    onChange={handleFileChange}
+                    className='hidden'
+                    ref={fileInputRef}
+                />
+                {/* SVG for triggering file input */}
+                <label htmlFor="fileInput" className="cursor-pointer" onClick={handleFileClick}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="icon icon-tabler icon-tabler-circle-plus" width="30" height="30" viewBox="0 0 24 24" strokeWidth="1.5" stroke="#2c3e50" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <circle cx="12" cy="12" r="9" />
+                        <line x1="9" y1="12" x2="15" y2="12" />
+                        <line x1="12" y1="9" x2="12" y2="15" />
+                    </svg>
+                </label>
 						</div>
 					</div>
 				}

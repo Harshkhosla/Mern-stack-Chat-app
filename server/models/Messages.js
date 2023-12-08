@@ -17,7 +17,7 @@ const messageSchema = mongoose.Schema({
     },
     active: {
         type: Boolean,
-        default: true, // Set the default value to true for new messages
+        default: true, 
     },
 });
 

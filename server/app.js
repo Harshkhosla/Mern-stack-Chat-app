@@ -11,10 +11,8 @@ const io = require('socket.io')(8080, {
     }
 });
 
-// Connect DB
 require('./db/connection');
 
-// Import Files
 const Users = require('./models/Users');
 const Conversations = require('./models/Conversations');
 const Messages = require('./models/Messages');
@@ -70,7 +68,6 @@ io.on('connection', socket => {
         users = users.filter(user => user.socketId !== socket.id);
         io.emit('getUsers', users);
     });
-    // io.emit('getUsers', socket.userId);
 });
 
 // Routes
@@ -81,13 +78,11 @@ app.get('/', (req, res) => {
 const authenticateUser = async (req, res, next) => {
     const token = req.headers.authorization;
 
-    // Check if the token is provided
     if (!token) {
         return res.status(401).send('Unauthorized: Token not provided');
     }
 
     try {
-        // Verify the token
         const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY || 'THIS_IS_A_JWT_SECRET_KEY');
         req.user = decoded;
         next();
@@ -100,7 +95,6 @@ app.put('/api/updateActiveStatus/:userId', async (req, res) => {
         const userId = req.params.userId;
         const { active } = req.body;
 
-        // Update the active status in the database
         const updatedUser = await Users.findByIdAndUpdate(userId, { active }, { new: true });
 
         if (!updatedUser) {
@@ -117,14 +111,12 @@ app.get('/api/user/:userId', async (req, res) => {
     try {
         const userId = req.params.userId;
 
-        // Fetch user details from the database
         const user = await Users.findById(userId);
 
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        // Return the user details in the response
         res.status(200).json({ success: true, user });
     } catch (error) {
         console.error('Error fetching user details:', error);
@@ -137,7 +129,6 @@ app.post('/api/set-active-status', authenticateUser, async (req, res) => {
         const { active } = req.body;
         const userId = req.user.userId;
 
-        // Find the user by ID and update the active status
         const user = await Users.findByIdAndUpdate(userId, { active }, { new: true });
 
         if (!user) {
@@ -291,18 +282,15 @@ app.post('/api/message', upload.single('file'), async (req, res) => {
     try {
         const { conversationId, senderId, message, receiverId = '' } = req.body;
 
-        // Check if a file is included in the request
         if (req.file) {
             const file = {
                 filename: req.file.originalname,
                 fileType: req.file.mimetype,
                 filePath: req.file.path,
             };
-            // Save the file information in the database along with the message
             const newMessage = new Messages({ conversationId, senderId, message, file });
             await newMessage.save();
         } else {
-            // Handle messages without files
             const newMessage = new Messages({ conversationId, senderId, message });
             await newMessage.save();
         }
